@@ -12,10 +12,9 @@ from ragas import evaluate as ragas_evaluate, EvaluationDataset, SingleTurnSampl
 from ragas.metrics import faithfulness, answer_relevancy
 from ragas.llms import LangchainLLMWrapper
 from ragas.embeddings import LangchainEmbeddingsWrapper
-from langchain_openai import ChatOpenAI
-from langchain_ollama import OllamaEmbeddings
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
-from src.config import JUDGE_MODEL, EMBED_MODEL, OLLAMA_BASE_URL
+from src.config import JUDGE_MODEL, EMBED_MODEL, OLLAMA_BASE_URL, LLM_BASE_URL, LLM_API_KEY, USE_GROQ
 from src.rag_pipeline import retrieve, build_context, generate
 from src.router import classify_intent
 
@@ -31,18 +30,20 @@ TEST_QUERIES = [
 def _judge_llm() -> LangchainLLMWrapper:
     llm = ChatOpenAI(
         model=JUDGE_MODEL,
-        base_url=f"{OLLAMA_BASE_URL}/v1",
-        api_key="ollama",
+        base_url=LLM_BASE_URL,
+        api_key=LLM_API_KEY,
         temperature=0,
     )
     return LangchainLLMWrapper(llm)
 
 
 def _judge_embeddings() -> LangchainEmbeddingsWrapper:
-    emb = OllamaEmbeddings(
-        model=EMBED_MODEL,
-        base_url=OLLAMA_BASE_URL,
-    )
+    if USE_GROQ:
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+        emb = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+    else:
+        from langchain_ollama import OllamaEmbeddings
+        emb = OllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
     return LangchainEmbeddingsWrapper(emb)
 
 
@@ -70,7 +71,7 @@ def main():
 
     dataset = EvaluationDataset(samples=samples)
 
-    print("\nScoring with RAGAS (judge: qwen2.5:3b)...\n")
+    print(f"\nScoring with RAGAS (judge: {JUDGE_MODEL})...\n")
     results = ragas_evaluate(
         dataset,
         metrics=[faithfulness, answer_relevancy],

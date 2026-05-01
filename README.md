@@ -1,3 +1,15 @@
+---
+title: CineRAG
+emoji: 🎬
+colorFrom: indigo
+colorTo: blue
+sdk: gradio
+sdk_version: 5.29.0
+app_file: chatbot.py
+pinned: false
+short_description: Film chatbot powered by RAG — ChromaDB + Groq + RAGAS
+---
+
 # RAG Film Chatbot
 
 A fully local RAG chatbot for film recommendations built with Ollama, ChromaDB, Phoenix, and RAGAS.

@@ -6,7 +6,7 @@ from opentelemetry.trace import StatusCode
 from ragas import evaluate as ragas_evaluate, EvaluationDataset, SingleTurnSample
 from ragas.metrics import faithfulness, answer_relevancy
 
-from src.config import LLM_MODEL
+from src.config import LLM_MODEL, JUDGE_MODEL
 from src.router import route
 from src.rag_pipeline import run as rag_run
 from src.tracing import init_tracing, get_tracer
@@ -100,7 +100,7 @@ def evaluate_single_answer(last_result, progress=gr.Progress(track_tqdm=True)):
         return
 
     progress(0.1, desc="Scoring with RAGAS...")
-    yield "_Scoring with RAGAS (judge: qwen2.5:3b)..._", "", ""
+    yield f"_Scoring with RAGAS (judge: {JUDGE_MODEL})..._", "", ""
 
     sample  = SingleTurnSample(
         user_input=last_result["question"],
@@ -147,8 +147,8 @@ def run_evaluation(progress=gr.Progress(track_tqdm=True)):
             retrieved_contexts=result["contexts"],
         ))
 
-    progress(0.6, desc="Scoring with RAGAS (qwen2.5:3b)...")
-    yield f"_All {n} queries done. Scoring with RAGAS (judge: qwen2.5:3b)..._", "", "", gr.DataFrame(visible=False)
+    progress(0.6, desc=f"Scoring with RAGAS ({JUDGE_MODEL})...")
+    yield f"_All {n} queries done. Scoring with RAGAS (judge: {JUDGE_MODEL})..._", "", "", gr.DataFrame(visible=False)
 
     dataset = EvaluationDataset(samples=samples)
     results = ragas_evaluate(
@@ -240,7 +240,7 @@ def build_ui() -> gr.Blocks:
             with gr.Tab("Evaluate"):
                 gr.Markdown("## RAGAS Evaluation\n"
                             f"Runs {len(TEST_QUERIES)} test queries through the pipeline and scores with "
-                            "`faithfulness` and `answer_relevancy` using `qwen2.5:3b` as judge.")
+                            f"`faithfulness` and `answer_relevancy` using `{JUDGE_MODEL}` as judge.")
 
                 eval_btn    = gr.Button("Run Evaluation", variant="primary", size="lg")
                 eval_status = gr.Markdown("_Click the button to start..._")

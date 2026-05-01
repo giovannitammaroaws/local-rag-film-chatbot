@@ -1,4 +1,3 @@
-import ollama
 import chromadb
 from openai import OpenAI
 from opentelemetry import trace as otel_trace, context as otel_ctx
@@ -9,13 +8,28 @@ from src.config import (
     CHROMA_PATH,
     EMBED_MODEL,
     LLM_MODEL,
+    LLM_BASE_URL,
+    LLM_API_KEY,
     OLLAMA_BASE_URL,
     TOP_K,
+    USE_GROQ,
 )
 from src.tracing import get_tracer
 
-# OpenAI-compatible client pointing at Ollama - auto-instrumented by OpenInference.
-openai_client = OpenAI(base_url=f"{OLLAMA_BASE_URL}/v1", api_key="ollama")
+openai_client = OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY)
+
+_st_model = None
+
+def _embed(text: str) -> list[float]:
+    if USE_GROQ:
+        global _st_model
+        if _st_model is None:
+            from sentence_transformers import SentenceTransformer
+            _st_model = SentenceTransformer(EMBED_MODEL, trust_remote_code=True)
+        return _st_model.encode(text, convert_to_numpy=True).tolist()
+    else:
+        import ollama
+        return ollama.embeddings(model=EMBED_MODEL, prompt=text)["embedding"]
 
 PROMPTS = {
     "factual": (
@@ -73,7 +87,7 @@ def retrieve(query: str) -> list[dict]:
     n_semantic = TOP_K - len(forced)
     semantic = []
     if n_semantic > 0:
-        query_vec = ollama.embeddings(model=EMBED_MODEL, prompt=f"search_query: {query}")["embedding"]
+        query_vec = _embed(f"search_query: {query}")
         results   = collection.query(query_embeddings=[query_vec], n_results=n_semantic * 3)
         seen      = {d["metadata"]["title"] for d in forced}
         for doc, meta in zip(results["documents"][0], results["metadatas"][0]):
