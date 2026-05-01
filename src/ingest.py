@@ -73,7 +73,7 @@ def build_document(row) -> str:
 
 # Calls Ollama to generate an embedding vector for a single text.
 def embed(text: str) -> list[float]:
-    response = ollama.embeddings(model=EMBED_MODEL, prompt=text)
+    response = ollama.embeddings(model=EMBED_MODEL, prompt=f"search_document: {text}")
     return response["embedding"]
 
 
@@ -81,7 +81,10 @@ def embed(text: str) -> list[float]:
 # Skips films that are already present (upsert by string id).
 def index_films(df: pd.DataFrame):
     client     = chromadb.PersistentClient(path=CHROMA_PATH)
-    collection = client.get_or_create_collection(name=CHROMA_COLLECTION)
+    collection = client.get_or_create_collection(
+        name=CHROMA_COLLECTION,
+        metadata={"hnsw:space": "cosine"},
+    )
 
     total   = len(df)
     indexed = 0

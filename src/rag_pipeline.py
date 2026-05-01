@@ -45,16 +45,43 @@ PROMPTS = {
 
 
 # Embeds the query with Ollama and retrieves the top-K most similar films from ChromaDB.
+_title_index: dict[str, str] | None = None
+
+
+def _load_title_index(collection) -> dict[str, str]:
+    global _title_index
+    if _title_index is None:
+        all_meta = collection.get(include=["metadatas"])
+        _title_index = {m["title"].lower(): m["title"] for m in all_meta["metadatas"]}
+    return _title_index
+
+
 def retrieve(query: str) -> list[dict]:
     client     = chromadb.PersistentClient(path=CHROMA_PATH)
     collection = client.get_collection(CHROMA_COLLECTION)
-    query_vec  = ollama.embeddings(model=EMBED_MODEL, prompt=query)["embedding"]
-    results    = collection.query(query_embeddings=[query_vec], n_results=TOP_K)
+    query_lower = query.lower()
 
-    return [
-        {"document": doc, "metadata": meta}
-        for doc, meta in zip(results["documents"][0], results["metadatas"][0])
-    ]
+    title_index = _load_title_index(collection)
+    matched = [title for lower, title in title_index.items() if lower in query_lower]
+
+    forced = []
+    for title in matched[:TOP_K]:
+        res = collection.get(where={"title": {"$eq": title}}, include=["documents", "metadatas"])
+        if res["ids"]:
+            forced.append({"document": res["documents"][0], "metadata": res["metadatas"][0]})
+
+    n_semantic = TOP_K - len(forced)
+    semantic = []
+    if n_semantic > 0:
+        query_vec = ollama.embeddings(model=EMBED_MODEL, prompt=f"search_query: {query}")["embedding"]
+        results   = collection.query(query_embeddings=[query_vec], n_results=n_semantic * 3)
+        seen      = {d["metadata"]["title"] for d in forced}
+        for doc, meta in zip(results["documents"][0], results["metadatas"][0]):
+            if meta["title"] not in seen and len(semantic) < n_semantic:
+                semantic.append({"document": doc, "metadata": meta})
+                seen.add(meta["title"])
+
+    return forced + semantic
 
 
 # Formats the retrieved documents into a numbered context string for the prompt.

@@ -25,7 +25,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 GUARDRAIL_ENABLED = _get_bool("GUARDRAIL_ENABLED", True)
 
 # Generation model
-LLM_MODEL = os.getenv("LLM_MODEL", "llama3.2:3b")
+LLM_MODEL = os.getenv("LLM_MODEL", "llama3.1:8b")
 
 # Embedding model (for ChromaDB indexing and query encoding)
 EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")

@@ -31,6 +31,183 @@ flowchart TD
     S3 --> SCORE
 ```
 
+## Answer, inference and RAGAS evaluation
+
+### 1. Answer
+
+![Answer shown in the chatbot UI](images/answer.png)
+
+The `Answer` is the final response returned to the user in the chatbot UI.
+It is produced after the RAG pipeline has accepted the question, retrieved the
+most relevant film documents from ChromaDB, built the context, and asked the LLM
+to generate a grounded answer from that context.
+
+In other words, this is the user-facing result of inference: the model has
+already used the retrieved context and has produced the final natural-language
+response.
+
+### 2. Inference trace
+
+![Phoenix trace showing the RAG inference flow](images/LLM_1.png)
+
+Phoenix records the inference flow as a trace. A typical query starts from
+`rag-film-chatbot.query`, then enters the RAG pipeline through `rag.run`.
+Inside that run, the application retrieves context with `rag.retrieve` and
+then generates the final answer with `rag.generate`.
+
+In `LLM_1`, Phoenix shows the request as five readable trace sections:
+
+- `rag-film-chatbot.query`: the parent trace for the whole user request. It
+  starts when the user sends the question from the Gradio UI and ends when the
+  answer is ready.
+- first `ChatCompletion`: the router/classifier LLM call. It reads the user
+  question and decides whether the intent is `factual`, `recommendation`, or
+  `comparison`. In the screenshot, the output is `factual`.
+- `rag.run`: the main RAG pipeline container. It receives the original query
+  plus the detected intent and coordinates retrieval and generation.
+- `rag.retrieve`: the retriever step. It searches ChromaDB for the most relevant
+  film documents, using embeddings and exact title matching when possible.
+- `rag.generate` and its nested `ChatCompletion`: the generation step. It builds
+  the final prompt from the user question plus retrieved context, then calls the
+  LLM to produce the final answer shown in the UI.
+
+The `ChatCompletion` spans are the real LLM calls. The manual `rag.*` spans are
+the application-level steps we created so Phoenix can show where the time is
+spent and which part of the pipeline produced each result.
+
+### 3. LLM calls breakdown
+
+![Phoenix spans table showing five ChatCompletion calls](images/LLM_2.png)
+
+At this point the chatbot has already answered `"Christopher Nolan."` to the
+question `"Who directed Inception?"`. Clicking **Evaluate this answer** triggers
+RAGAS, which uses a judge model (`qwen2.5:3b`) to measure the answer quality.
+RAGAS has no access to ground truth — it only has the answer, the question, and
+the retrieved documents. It asks the judge two questions, producing **5 LLM
+calls in total**:
+
+```
+faithfulness      → 2 calls
+answer relevancy  → 3 calls
+──────────────────────────────
+1 evaluated sample → 5 calls   (N samples → 5×N calls)
+```
+
+**Question 1 — Did the chatbot invent anything, or did it stick to what it retrieved? (`faithfulness`)**
+
+RAGAS cannot look up facts externally. Instead it checks whether the answer is
+supported by the documents that the RAG pipeline actually retrieved.
+
+- **Call 1** asks the judge: *"Turn the answer into a verifiable statement."*
+  `"Christopher Nolan."` → `"Christopher Nolan directed a film."`
+  This is a preparation step — a short answer must become a checkable claim.
+
+- **Call 5** asks the judge: *"Is this statement present in the retrieved documents?"*
+  The Inception document contains `Director: Christopher Nolan` → `verdict: 1` ✓
+
+The two calls are not the same: the first one **prepares** the claim, the second
+one **verifies** it. Both are required because the LLM answer is free text, not
+a structured fact.
+
+**Question 2 — Did the chatbot actually answer the question that was asked? (`answer relevancy`)**
+
+RAGAS uses a reverse trick: instead of directly comparing the answer to the
+question, it asks the judge *"If someone answered 'Christopher Nolan.', what
+question were they probably answering?"* — then compares that generated question
+to the original. If they match, the answer was on-topic.
+
+This is done **3 times** (Calls 2, 3, 4) with the same input, because the judge
+is probabilistic and a single attempt could be a lucky or unlucky sample. Three
+attempts give a more stable average:
+
+| Call | Judge output | Match with `"Who directed Inception?"` |
+|------|-------------|----------------------------------------|
+| 2 | `"Who is Christopher Nolan?"` | Partial — right person, wrong angle |
+| 3 | `"Who directed the Dark Knight film series?"` | No — wrong film entirely |
+| 4 | `"Who is Christopher Nolan?"` | Partial — same as Call 2 |
+
+RAGAS embeds all three generated questions and the original question, computes
+cosine similarity for each pair, and averages the three scores. Call 3 (wrong
+film) pulls the final `answer relevancy` score below 1.0. The root cause: the
+answer `"Christopher Nolan."` is too short to uniquely imply `Inception` — it
+could be the answer to many questions about Nolan.
+
+The bottom `rag-film-chatbot.query` row in the screenshot is a `chain` span, not
+an `llm` span — it wraps the entire request lifecycle from user question to
+final answer, and is not one of the five LLM calls.
+
+
+### 4. Evaluation after inference
+
+Evaluation happens after inference. The answer is already generated first; only
+then the user can run evaluation on that answer.
+
+The evaluation step creates a RAGAS sample composed of:
+
+- the original user question
+- the generated answer
+- the retrieved contexts used by the RAG pipeline
+
+RAGAS then uses the judge model (`qwen2.5:3b`) to score the answer. In this
+project the evaluation focuses on:
+
+- `faithfulness`: whether the answer is grounded in the retrieved context
+- `answer relevancy`: whether the answer actually responds to the user query
+
+So the flow is:
+
+```text
+Question -> RAG inference -> Answer -> RAGAS evaluation -> Scores
+```
+
+The important distinction is that evaluation does not generate the answer. It
+checks the quality of an answer that was already produced by inference.
+
+## RAGAS
+
+RAGAS is the evaluation layer used after the RAG answer has already been
+generated. It does not replace the RAG pipeline and it does not create the
+answer shown to the user.
+
+In this project RAGAS receives:
+
+- the original user question
+- the answer generated by the chatbot
+- the retrieved contexts used during inference
+
+Then it asks a local judge model (`qwen2.5:3b`) to score the answer.
+
+### Faithfulness
+
+`faithfulness` checks whether the generated answer is supported by the
+retrieved context.
+
+A high faithfulness score means the answer is grounded in the documents that
+were retrieved from ChromaDB. A low score means the model may have added facts
+that are not present in the retrieved context, which is a hallucination risk.
+
+Example:
+
+- good: the answer says only things that appear in the retrieved film data
+- bad: the answer invents a director, year, actor, plot detail, or genre that
+  was not retrieved
+
+### Answer relevancy
+
+`answer relevancy` checks whether the generated answer actually responds to the
+user question.
+
+A high answer relevancy score means the answer is on-topic and useful for the
+question that was asked. A low score means the answer may be generic, partial,
+off-topic, or focused on the wrong part of the request.
+
+Example:
+
+- good: the user asks for a noir recommendation and the answer recommends noir
+  films with a reason
+- bad: the user asks for a comparison and the answer only gives a generic movie
+  summary
+
 ## Requirements
 
 - Python 3.11+
