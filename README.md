@@ -68,14 +68,9 @@ source .venv/bin/activate
 
 ```bash
 pip install -r requirements.txt
+pip uninstall arize-phoenix arize-phoenix-evals arize-phoenix-client arize-phoenix-otel -y
+pip install "arize-phoenix==4.29.0"
 ```
-
-> Note: use `arize-phoenix==4.29.0` — newer versions (8.x) pull in pydantic-ai and hundreds of
-> heavy dependencies. If you already installed a newer version, downgrade with:
-> ```bash
-> pip uninstall arize-phoenix arize-phoenix-evals arize-phoenix-client arize-phoenix-otel -y
-> pip install "arize-phoenix==4.29.0"
-> ```
 
 ### 4. Start Ollama
 
