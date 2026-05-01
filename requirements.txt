@@ -1,5 +1,6 @@
 # LLM + embeddings (local, via Ollama HTTP API)
 ollama==0.4.4
+openai==2.33.0
 
 # Vector store
 chromadb==0.6.3
@@ -7,11 +8,13 @@ chromadb==0.6.3
 # Tracing + observability
 # Phoenix runs via Docker: docker run -p 6006:6006 -p 4317:4317 arizephoenix/phoenix:latest
 opentelemetry-sdk==1.29.0
-opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-otlp-proto-http==1.29.0
+openinference-instrumentation-openai==0.1.45
 
 # Evaluation (uses qwen2.5:3b as judge, separate from generation model)
 ragas==0.2.10
-langchain-openai     # RAGAS judge LLM + embeddings wrapper
+langchain-openai     # RAGAS judge LLM wrapper
+langchain-ollama==1.1.0
 datasets             # RAGAS Dataset.from_dict()
 
 # UI

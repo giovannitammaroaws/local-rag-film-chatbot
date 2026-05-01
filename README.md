@@ -13,7 +13,7 @@ A fully local RAG chatbot for film recommendations built with Ollama, ChromaDB, 
 ### 1. Enter the project folder
 
 ```bash
-cd cinerag
+cd local-rag-film-chatbot
 ```
 
 ### 2. Create and activate a virtual environment
@@ -26,18 +26,12 @@ source .venv/bin/activate
 ### 3. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
 ### 4. Optional: customize configuration
 
-Copy `.env.example` to `.env` and edit values only if you need different models, ports, or paths.
-
-```bash
-cp .env.example .env
-```
-
-Current configuration is read from environment variables, with defaults defined in `src/config.py`.
+Configuration is read from environment variables, with defaults defined in `src/config.py`.
 
 ### 5. Start Ollama
 
@@ -59,13 +53,13 @@ ollama pull qwen2.5:3b
 The TMDB dataset is already included in `data/`.
 
 ```bash
-python3 ingest.py
+.venv/bin/python ingest.py
 ```
 
 ### 8. Run the chatbot
 
 ```bash
-python3 chatbot.py
+.venv/bin/python chatbot.py
 ```
 
 Open `http://127.0.0.1:7860`.
@@ -75,7 +69,7 @@ Open `http://127.0.0.1:7860`.
 Install the git hook once:
 
 ```bash
-pre-commit install
+.venv/bin/python -m pre_commit install
 ```
 
 From that point on, every `git commit` runs `pytest` first through `scripts/run-tests.sh`.
@@ -83,7 +77,7 @@ From that point on, every `git commit` runs `pytest` first through `scripts/run-
 You can also run the same checks manually:
 
 ```bash
-pre-commit run --all-files
+.venv/bin/python -m pre_commit run --all-files
 ```
 
 ## Observability with Phoenix
@@ -99,7 +93,7 @@ docker run -p 6006:6006 -p 4317:4317 arizephoenix/phoenix:latest
 ### 2. Start the chatbot
 
 ```bash
-python3 chatbot.py
+.venv/bin/python chatbot.py
 ```
 
 ### 3. Open Phoenix
@@ -110,8 +104,11 @@ python3 chatbot.py
 ## Project structure
 
 ```text
-cinerag/
+local-rag-film-chatbot/
+├── chatbot.py
 ├── data/
+├── evaluate.py
+├── ingest.py
 ├── scripts/
 │   └── run-tests.sh
 ├── src/
@@ -124,7 +121,6 @@ cinerag/
 │   ├── rag_pipeline.py
 │   ├── router.py
 │   └── tracing.py
-├── .env.example
 ├── .gitignore
 ├── .pre-commit-config.yaml
 └── requirements.txt
@@ -132,7 +128,7 @@ cinerag/
 
 ## Environment variables
 
-These values can be overridden in the shell or in a local `.env` file that you export manually before running:
+These values can be overridden directly in the shell before running:
 
 ```bash
 export OLLAMA_BASE_URL=http://localhost:11434

@@ -28,7 +28,7 @@ def _ts() -> str:
 def _process(msg: str) -> tuple[str | None, str | None, str, list[dict]]:
     tracer = get_tracer()
 
-    root_span  = tracer.start_span("cinerag.query")
+    root_span  = tracer.start_span("rag-film-chatbot.query")
     root_ctx   = otel_trace.set_span_in_context(root_span)
     root_token = otel_ctx.attach(root_ctx)
     try:
