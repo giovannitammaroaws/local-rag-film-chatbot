@@ -1,5 +1,5 @@
 # LLM + embeddings (local, via Ollama HTTP API)
-ollama==0.4.4
+ollama==0.6.2
 openai==2.33.0
 
 # Vector store
