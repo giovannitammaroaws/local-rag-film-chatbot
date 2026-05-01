@@ -285,16 +285,45 @@ Evaluation happens **after** inference. The answer is already generated; only th
 
 ## RAGAS metrics
 
-### Faithfulness
+### Faithfulness — hallucination check
 
-Checks whether the generated answer is supported by the retrieved context. A low score means the model added facts not present in the retrieved documents — a hallucination risk.
+Faithfulness checks whether the chatbot **invented something** or stayed within what it actually retrieved.
 
-- **Good:** the answer says only things that appear in the retrieved film data
-- **Bad:** the answer invents a director, year, actor, or plot detail that was not retrieved
+When the RAG pipeline answers a question, it first fetches the top 5 most relevant films from ChromaDB (`TOP_K=5`). Those 5 documents are the only source of truth the chatbot is supposed to use. Faithfulness verifies exactly that.
 
-### Answer Relevancy
+The judge model breaks the answer into atomic claims and checks each one against the 5 retrieved documents:
 
-Checks whether the generated answer actually responds to the user question. A low score means the answer is generic, partial, or off-topic.
+- **verdict 1** → the claim is explicitly supported by the retrieved context
+- **verdict 0** → the claim is not in the retrieved context — the model invented it
 
-- **Good:** the user asks for a noir recommendation and the answer recommends noir films with a reason
-- **Bad:** the user asks for a comparison and the answer only gives a generic movie summary
+```
+faithfulness = supported claims / total claims
+```
+
+- Score **1.0** → everything the chatbot said came from the retrieved documents ✅
+- Score **0.0** → the chatbot ignored the context and answered from its own memory ❌
+
+Example: the TMDB dataset does not contain Oscar award data. If the chatbot answers *"The Godfather won 3 Oscars"*, that claim is not in the retrieved context → faithfulness = 0. The chatbot hallucinated using its training data instead of the retrieved documents.
+
+### Answer Relevancy — on-topic check
+
+Answer relevancy checks whether the chatbot **answered the right question** — not whether the answer is correct.
+
+There is no ground truth here. RAGAS uses a reverse trick instead:
+
+1. Takes the chatbot answer
+2. Asks the judge: *"If someone gave this answer, what question were they probably answering?"*
+3. Generates 3 synthetic questions from the answer
+4. Measures cosine similarity between each generated question and the original question
+5. Averages the 3 similarity scores
+
+```
+answer_relevancy = avg cosine similarity(generated questions, original question)
+```
+
+- Score **1.0** → the answer perfectly addresses the question asked ✅
+- Score **0.0** → the answer has nothing to do with the question ❌
+
+Example: for `"Who directed Inception?"` → `"Christopher Nolan."` the judge generates questions like *"Who is Christopher Nolan?"* and *"Who directed the Dark Knight?"* — because the answer is too short and never mentions Inception. The generated questions drift away from the original → answer relevancy = **0.571**.
+
+> Answer relevancy does **not** tell you if the answer is factually correct. It only tells you if the answer is on-topic. For factual correctness you would need `answer_correctness`, which requires a hand-written ground truth for every question — not practical for a 4799-film dataset.
