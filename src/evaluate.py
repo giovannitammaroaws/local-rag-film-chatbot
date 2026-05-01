@@ -1,5 +1,5 @@
 """
-RAGAS evaluation for CineRAG (RAGAS 0.2.x API).
+RAGAS evaluation for RAG Film Chatbot (RAGAS 0.2.x API).
 
 Runs a small test set through the RAG pipeline and scores each answer on:
   - faithfulness:       does the answer stay within the retrieved context?
@@ -15,9 +15,9 @@ from ragas.embeddings import LangchainEmbeddingsWrapper
 from langchain_openai import ChatOpenAI
 from langchain_ollama import OllamaEmbeddings
 
-from config import JUDGE_MODEL, EMBED_MODEL, OLLAMA_BASE_URL
-from rag_pipeline import retrieve, build_context, generate
-from router import classify_intent
+from src.config import JUDGE_MODEL, EMBED_MODEL, OLLAMA_BASE_URL
+from src.rag_pipeline import retrieve, build_context, generate
+from src.router import classify_intent
 
 TEST_QUERIES = [
     "Who directed The Dark Knight?",

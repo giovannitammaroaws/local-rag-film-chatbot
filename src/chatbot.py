@@ -6,10 +6,11 @@ from opentelemetry.trace import StatusCode
 from ragas import evaluate as ragas_evaluate, EvaluationDataset, SingleTurnSample
 from ragas.metrics import faithfulness, answer_relevancy
 
-from router import route
-from rag_pipeline import run as rag_run
-from tracing import init_tracing, get_tracer
-from evaluate import _run_query, _judge_llm, _judge_embeddings, TEST_QUERIES
+from src.config import LLM_MODEL
+from src.router import route
+from src.rag_pipeline import run as rag_run
+from src.tracing import init_tracing, get_tracer
+from src.evaluate import _run_query, _judge_llm, _judge_embeddings, TEST_QUERIES
 
 EXAMPLES = [
     "Recommend me a sci-fi film about artificial intelligence",
@@ -170,16 +171,16 @@ def run_evaluation(progress=gr.Progress(track_tqdm=True)):
     progress(1.0, desc="Done!")
     yield (
         "**Evaluation complete.**",
-        f"## {faith_val:.3f}\n_Faithfulness_ — answers grounded in retrieved context",
-        f"{relevancy_str}\n_Answer Relevancy_ — answers on-topic with the query",
+        f"## {faith_val:.3f}\n_Faithfulness_ - answers grounded in retrieved context",
+        f"{relevancy_str}\n_Answer Relevancy_ - answers on-topic with the query",
         gr.DataFrame(value=display_df, visible=True),
     )
 
 
 def build_ui() -> gr.Blocks:
-    with gr.Blocks(title="CineRAG") as demo:
+    with gr.Blocks(title="RAG Film Chatbot") as demo:
 
-        gr.Markdown("# CineRAG - Film Chatbot\n"
+        gr.Markdown("# RAG Film Chatbot\n"
                     "_Ollama - ChromaDB - Phoenix - RAGAS_")
 
         total_cost_state  = gr.State(0.0)
@@ -214,7 +215,7 @@ def build_ui() -> gr.Blocks:
 
                         gr.Markdown("---")
                         gr.Markdown("[Phoenix Dashboard](http://localhost:6006)")
-                        gr.Markdown(f"`{__import__('config').LLM_MODEL}` via Ollama")
+                        gr.Markdown(f"`{LLM_MODEL}` via Ollama")
                         gr.Markdown("ChromaDB - 4799 TMDB films")
 
                 gr.Markdown("### Pipeline Log")
@@ -261,7 +262,7 @@ def build_ui() -> gr.Blocks:
     return demo
 
 
-if __name__ == "__main__":
+def main():
     init_tracing()
     demo = build_ui()
     demo.launch(
@@ -269,3 +270,7 @@ if __name__ == "__main__":
         css="footer { display: none !important; }",
         ssr_mode=False,
     )
+
+
+if __name__ == "__main__":
+    main()

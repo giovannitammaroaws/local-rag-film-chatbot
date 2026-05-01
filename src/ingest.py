@@ -1,12 +1,13 @@
 import ast
+from pathlib import Path
+
 import pandas as pd
 import chromadb
 import ollama
 from tqdm import tqdm
 
-from config import CHROMA_PATH, CHROMA_COLLECTION, EMBED_MODEL
+from src.config import CHROMA_PATH, CHROMA_COLLECTION, EMBED_MODEL
 
-from pathlib import Path
 _DATA = Path(__file__).parent.parent / "data"
 MOVIES_CSV  = str(_DATA / "tmdb_5000_movies.csv")
 CREDITS_CSV = str(_DATA / "tmdb_5000_credits.csv")
@@ -123,7 +124,7 @@ def index_films(df: pd.DataFrame):
     print(f"\nDone. {indexed} films stored in ChromaDB at '{CHROMA_PATH}'.")
 
 
-if __name__ == "__main__":
+def main():
     print("Loading dataset...")
     df = load_dataset()
     print(f"  {len(df)} films loaded.\n")
@@ -131,3 +132,7 @@ if __name__ == "__main__":
     print(f"Indexing into ChromaDB (model: {EMBED_MODEL})...")
     print("  This will take ~10-15 minutes on first run.\n")
     index_films(df)
+
+
+if __name__ == "__main__":
+    main()

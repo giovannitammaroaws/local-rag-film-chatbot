@@ -16,9 +16,9 @@ def init_tracing():
     trace.set_tracer_provider(provider)
 
     OpenAIInstrumentor().instrument()
-    print("Tracing active — Phoenix at http://localhost:6006")
+    print("Tracing active - Phoenix at http://localhost:6006")
 
 
 # Returns a tracer instance for manual span creation.
 def get_tracer() -> trace.Tracer:
-    return trace.get_tracer("cinerag")
+    return trace.get_tracer("rag-film-chatbot")

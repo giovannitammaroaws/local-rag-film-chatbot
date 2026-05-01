@@ -4,10 +4,17 @@ from openai import OpenAI
 from opentelemetry import trace as otel_trace, context as otel_ctx
 from opentelemetry.trace import StatusCode
 
-from config import LLM_MODEL, EMBED_MODEL, CHROMA_PATH, CHROMA_COLLECTION, TOP_K, OLLAMA_BASE_URL
-from tracing import get_tracer
+from src.config import (
+    CHROMA_COLLECTION,
+    CHROMA_PATH,
+    EMBED_MODEL,
+    LLM_MODEL,
+    OLLAMA_BASE_URL,
+    TOP_K,
+)
+from src.tracing import get_tracer
 
-# OpenAI-compatible client pointing at Ollama — auto-instrumented by OpenInference.
+# OpenAI-compatible client pointing at Ollama - auto-instrumented by OpenInference.
 openai_client = OpenAI(base_url=f"{OLLAMA_BASE_URL}/v1", api_key="ollama")
 
 PROMPTS = {
@@ -68,7 +75,7 @@ def generate(query: str, intent: str, context: str) -> str:
 
 
 # Full RAG pipeline with nested OTel spans: rag.run → rag.retrieve + rag.generate → ChatCompletion.
-# Returns (full_response, docs) — non-streaming so Phoenix can record the complete answer.
+# Returns (full_response, docs) - non-streaming so Phoenix can record the complete answer.
 def run(query: str, intent: str) -> tuple[str, list[dict]]:
     tracer = get_tracer()
 

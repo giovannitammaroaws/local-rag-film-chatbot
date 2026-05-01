@@ -21,3 +21,7 @@ gradio==6.14.0
 pandas==2.2.3
 kaggle==1.7.4
 tqdm==4.67.1
+
+# Testing
+pytest==8.3.4
+pre-commit==4.5.1

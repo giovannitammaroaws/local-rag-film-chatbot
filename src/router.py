@@ -1,8 +1,9 @@
 from openai import OpenAI
-from guardrail import check as guardrail_check
-from config import LLM_MODEL, OLLAMA_BASE_URL, GUARDRAIL_ENABLED
 
-# OpenAI-compatible client pointing at Ollama — auto-instrumented by OpenInference.
+from src.guardrail import check as guardrail_check
+from src.config import LLM_MODEL, OLLAMA_BASE_URL, GUARDRAIL_ENABLED
+
+# OpenAI-compatible client pointing at Ollama - auto-instrumented by OpenInference.
 openai_client = OpenAI(base_url=f"{OLLAMA_BASE_URL}/v1", api_key="ollama")
 
 INTENT_PROMPT = """Classify the user query into one of three categories:

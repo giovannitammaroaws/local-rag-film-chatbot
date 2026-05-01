@@ -1,5 +1,6 @@
 import ollama
-from config import LLM_MODEL, GUARD_MODEL
+
+from src.config import LLM_MODEL, GUARD_MODEL
 
 # Rejection messages returned to the user when a check fails.
 MSG_UNSAFE    = "I'm sorry, I can't help with that request."
@@ -26,7 +27,7 @@ def is_film_related(query: str) -> bool:
             "content": (
                 "You are a strict classifier. Reply YES only if the question is DIRECTLY about films, "
                 "cinema, movie directors, actors, screenwriters, film awards, or specific movies. "
-                "Reply NO for anything else — recipes, sports, politics, general knowledge, greetings, etc. "
+                "Reply NO for anything else - recipes, sports, politics, general knowledge, greetings, etc. "
                 "Reply with exactly one word: YES or NO.\n"
                 f"Question: {query}"
             ),
