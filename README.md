@@ -47,15 +47,37 @@ cd local-rag-film-chatbot
 
 ### 2. Create and activate a virtual environment
 
+🐧 **Linux / macOS**
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
+🪟 **Windows (PowerShell)**
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+> If PowerShell blocks the script with an execution-policy error, run once:
+> `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+🪟 **Windows (Command Prompt)**
+```cmd
+python -m venv .venv
+.venv\Scripts\activate.bat
+```
+
 ### 3. Install dependencies
 
+🐧 **Linux / macOS**
 ```bash
 .venv/bin/python -m pip install -r requirements.txt
+```
+
+🪟 **Windows**
+```powershell
+.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
 ### 4. Optional: customize configuration
@@ -81,32 +103,58 @@ ollama pull qwen2.5:3b
 
 The TMDB dataset is already included in `data/`.
 
+🐧 **Linux / macOS**
 ```bash
 .venv/bin/python ingest.py
 ```
 
+🪟 **Windows**
+```powershell
+.venv\Scripts\python ingest.py
+```
+
 ### 8. Run the chatbot
 
+🐧 **Linux / macOS**
 ```bash
 .venv/bin/python chatbot.py
 ```
 
+🪟 **Windows**
+```powershell
+.venv\Scripts\python chatbot.py
+```
+
 Open `http://127.0.0.1:7860`.
 
-## Local quality gate
+## Local quality gate — optional (contributors only)
+
+> This section is intended for contributors who want to run automated checks before each commit. End users running the chatbot can skip this entirely.
 
 Install the git hook once:
 
+🐧 **Linux / macOS**
 ```bash
 .venv/bin/python -m pre_commit install
+```
+
+🪟 **Windows**
+```powershell
+.venv\Scripts\python -m pre_commit install
 ```
 
 From that point on, every `git commit` runs `pytest` first through `scripts/run-tests.sh`.
 
 You can also run the same checks manually:
 
+🐧 **Linux / macOS**
 ```bash
 .venv/bin/python -m pre_commit run --all-files
+```
+
+🪟 **Windows**
+```powershell
+.venv\Scripts\python -m pre_commit run --all-files
 ```
 
 ## Observability with Phoenix
@@ -125,8 +173,14 @@ docker run -p 6006:6006 -p 4317:4317 arizephoenix/phoenix:latest
 
 ### 2. Start the chatbot
 
+🐧 **Linux / macOS**
 ```bash
 .venv/bin/python chatbot.py
+```
+
+🪟 **Windows**
+```powershell
+.venv\Scripts\python chatbot.py
 ```
 
 ### 3. Open Phoenix
@@ -161,8 +215,9 @@ local-rag-film-chatbot/
 
 ## Environment variables
 
-These values can be overridden directly in the shell before running:
+These values can be overridden before running the app.
 
+🐧 **Linux / macOS**
 ```bash
 export OLLAMA_BASE_URL=http://localhost:11434
 export GUARDRAIL_ENABLED=true
@@ -173,4 +228,30 @@ export GUARD_MODEL=llama-guard3:1b
 export CHROMA_PATH=./chroma_db
 export CHROMA_COLLECTION=films
 export TOP_K=5
+```
+
+🪟 **Windows (PowerShell)**
+```powershell
+$env:OLLAMA_BASE_URL="http://localhost:11434"
+$env:GUARDRAIL_ENABLED="true"
+$env:LLM_MODEL="llama3.2:3b"
+$env:EMBED_MODEL="nomic-embed-text"
+$env:JUDGE_MODEL="qwen2.5:3b"
+$env:GUARD_MODEL="llama-guard3:1b"
+$env:CHROMA_PATH="./chroma_db"
+$env:CHROMA_COLLECTION="films"
+$env:TOP_K="5"
+```
+
+🪟 **Windows (Command Prompt)**
+```cmd
+set OLLAMA_BASE_URL=http://localhost:11434
+set GUARDRAIL_ENABLED=true
+set LLM_MODEL=llama3.2:3b
+set EMBED_MODEL=nomic-embed-text
+set JUDGE_MODEL=qwen2.5:3b
+set GUARD_MODEL=llama-guard3:1b
+set CHROMA_PATH=./chroma_db
+set CHROMA_COLLECTION=films
+set TOP_K=5
 ```
