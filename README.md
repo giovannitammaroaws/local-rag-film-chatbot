@@ -54,7 +54,7 @@ flowchart TD
 ### 1. Enter the project folder
 
 ```bash
-cd /Users/gio/Desktop/giovannitammaroaws/RAG/cinerag
+cd cinerag-film-chatbot
 ```
 
 ### 2. Create and activate the virtual environment
