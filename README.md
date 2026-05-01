@@ -2,6 +2,35 @@
 
 A fully local RAG chatbot for film recommendations built with Ollama, ChromaDB, Phoenix, and RAGAS.
 
+## Full pipeline - from client to RAGAS
+
+```mermaid
+flowchart TD
+    U([User query<br/>Gradio UI]) --> G
+
+    subgraph PIPE[RAG Pipeline]
+        G["Guardrail<br/>llama-guard3:1b<br/>safety + topic check"]
+        G -->|blocked| REJ([Rejection message])
+        G -->|safe| RT["Router<br/>llama3.2:3b<br/>classify intent"]
+        RT -->|factual / recommendation / comparison| RET["Retrieve<br/>nomic-embed-text to ChromaDB<br/>TOP_K films"]
+        RET --> CTX[Build context<br/>from retrieved docs]
+        CTX --> GEN["Generate<br/>llama3.2:3b<br/>answer from context"]
+    end
+
+    GEN --> ANS([Answer shown in UI])
+    PIPE -.->|OTel spans| PH[(Phoenix<br/>localhost:6006)]
+
+    ANS -->|click Evaluate this answer| RAGAS
+
+    subgraph RAGAS[RAGAS Evaluation - qwen2.5:3b judge]
+        S1["Create evaluation sample<br/>question + answer + contexts"] --> S2["Faithfulness<br/>grounded in retrieved context"]
+        S1 --> S3["Answer relevancy<br/>on-topic with the query"]
+    end
+
+    S2 --> SCORE([Scores shown in UI])
+    S3 --> SCORE
+```
+
 ## Requirements
 
 - Python 3.11+
@@ -82,7 +111,11 @@ You can also run the same checks manually:
 
 ## Observability with Phoenix
 
+This section assumes Docker is already installed on the user's machine.
+
 Phoenix runs in Docker; the Python app sends traces with the OTLP HTTP exporter to `http://localhost:6006/v1/traces`.
+
+If you want to avoid Docker overhead on the laptop, a practical alternative is Phoenix Cloud. Arize documents free Phoenix Cloud instances with 10 GiB of storage. In that setup you would point tracing to your Phoenix Cloud HTTP endpoint instead of `localhost`.
 
 ### 1. Start Phoenix
 
