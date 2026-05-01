@@ -37,6 +37,8 @@ flowchart TD
 - Ollama installed and running
 - Docker Desktop, if you want Phoenix tracing
 
+> 🪟 **Windows only:** use **Python 3.11** (not 3.12/3.13). `chromadb` ships pre-built wheels only for 3.11 on Windows — newer versions will fail to install with a C++ compiler error.
+
 ## Setup
 
 ### 1. Enter the project folder
