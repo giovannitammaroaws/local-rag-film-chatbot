@@ -6,8 +6,10 @@ from tqdm import tqdm
 
 from config import CHROMA_PATH, CHROMA_COLLECTION, EMBED_MODEL
 
-MOVIES_CSV  = "data/tmdb_5000_movies.csv"
-CREDITS_CSV = "data/tmdb_5000_credits.csv"
+from pathlib import Path
+_DATA = Path(__file__).parent.parent / "data"
+MOVIES_CSV  = str(_DATA / "tmdb_5000_movies.csv")
+CREDITS_CSV = str(_DATA / "tmdb_5000_credits.csv")
 
 BATCH_SIZE = 50
 

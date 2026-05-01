@@ -96,7 +96,7 @@ Total download: ~5.5GB
 The TMDB dataset is already included in `data/`. Run:
 
 ```bash
-python ingest.py
+python src/ingest.py
 ```
 
 This embeds 4799 films with `nomic-embed-text` and stores them in ChromaDB.
@@ -116,6 +116,7 @@ Done. 4799 films stored in ChromaDB at './chroma_db'.
 
 ```bash
 python -c "
+import sys; sys.path.insert(0, 'src')
 import chromadb, ollama
 from config import CHROMA_PATH, CHROMA_COLLECTION, EMBED_MODEL
 
@@ -135,23 +136,14 @@ Expected output: 3 relevant films returned for the query.
 
 ---
 
-## Run the mock chatbot
+## Run the chatbot
 
 ```bash
 source .venv/bin/activate
-python mock_chatbot.py
+python src/chatbot.py
 ```
 
 Open the browser at: `http://127.0.0.1:7860`
-
----
-
-## Run the real chatbot (after completing all steps)
-
-```bash
-source .venv/bin/activate
-python chatbot.py
-```
 
 ---
 
@@ -177,7 +169,7 @@ pip install opentelemetry-exporter-otlp-proto-grpc
 ### 3. Start the chatbot
 
 ```bash
-python chatbot.py
+python src/chatbot.py
 ```
 
 ### 4. Open the dashboards
@@ -192,28 +184,25 @@ Traces are sent via gRPC to `localhost:4317` and appear in Phoenix after each qu
 ## Project structure
 
 ```
-cinerag/
-├── config.py          # model names, paths, constants
-├── guardrail.py       # Llama Guard 3 safety + topic filter
-├── classifier.py      # keyword router (informativa / raccomandazione / confronto)
-├── responses.py       # mock answer data
-├── pipeline.py        # respond generator + log builder
-├── ui.py              # Gradio layout
-├── mock_chatbot.py    # entry point for the mock version
-│
-├── ingest.py          # [Step 2] load TMDB dataset + index into ChromaDB
-├── router.py          # [Step 4] LLM-based query router
-├── rag_pipeline.py    # [Step 5] full RAG pipeline
-├── chatbot.py         # [Step 7] real Gradio UI with streaming
-├── evaluate.py        # [Step 8] RAGAS evaluation
+cinerag-film-chatbot/
+├── README.md
+├── requirements.txt
+├── .gitignore
 │
 ├── data/
 │   ├── tmdb_5000_movies.csv
 │   └── tmdb_5000_credits.csv
 │
-├── chroma_db/         # created automatically by ingest.py
-├── requirements.txt
-└── README.md
+├── chroma_db/          # created automatically by src/ingest.py
+│
+└── src/
+    ├── config.py       # model names, paths, constants
+    ├── tracing.py      # OpenTelemetry + Phoenix init
+    ├── guardrail.py    # Llama Guard 3 safety + topic filter
+    ├── router.py       # LLM-based intent classifier
+    ├── rag_pipeline.py # retrieve + generate pipeline
+    ├── evaluate.py     # RAGAS evaluation
+    └── chatbot.py      # Gradio UI entry point
 ```
 
 ---
@@ -223,14 +212,13 @@ cinerag/
 | Step | File | Status | Description |
 |------|------|--------|-------------|
 | 1 | `requirements.txt` | done | Install dependencies and pull Ollama models |
-| 2 | `ingest.py` | done | Clean TMDB dataset, embed with nomic-embed-text, store in ChromaDB |
+| 2 | `src/ingest.py` | done | Clean TMDB dataset, embed with nomic-embed-text, store in ChromaDB |
 | 3 | — | done | Verify ChromaDB (4799 films indexed, semantic search working) |
-| 4 | `router.py` + `guardrail.py` | done | Llama Guard 3 safety check + LLM intent classifier |
-| 5 | `rag_pipeline.py` | done | Full RAG: retrieve from ChromaDB, generate with llama3.2:3b |
-| 6 | — | todo | Integrate Phoenix tracing (OpenTelemetry) |
-| 7 | `chatbot.py` | todo | Real Gradio UI replacing the mock |
-| 8 | `evaluate.py` | todo | RAGAS evaluation using qwen2.5:3b as judge |
-| 9 | — | todo | Hallucination demo: without RAG vs with RAG |
+| 4 | `src/router.py` + `src/guardrail.py` | done | Llama Guard 3 safety check + LLM intent classifier |
+| 5 | `src/rag_pipeline.py` | done | Full RAG: retrieve from ChromaDB, generate with llama3.2:3b |
+| 6 | `src/tracing.py` | done | Phoenix tracing via OpenTelemetry |
+| 7 | `src/chatbot.py` | done | Gradio UI with chat + evaluate tabs |
+| 8 | `src/evaluate.py` | done | RAGAS evaluation using qwen2.5:3b as judge |
 
 ---
 

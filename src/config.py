@@ -1,3 +1,7 @@
+from pathlib import Path
+
+ROOT = Path(__file__).parent.parent
+
 OLLAMA_BASE_URL = "http://localhost:11434"
 
 # Set to False during development to skip the guardrail and save ~2-3s per query.
@@ -17,7 +21,7 @@ JUDGE_MODEL = "qwen2.5:3b"
 GUARD_MODEL = "llama-guard3:1b"
 
 # ChromaDB
-CHROMA_PATH       = "./chroma_db"
+CHROMA_PATH       = str(ROOT / "chroma_db")
 CHROMA_COLLECTION = "films"
 
 # Retrieval
