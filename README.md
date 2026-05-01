@@ -261,11 +261,17 @@ answer relevancy  → 3 calls
 
 RAGAS generates 3 synthetic questions from the answer, then measures cosine similarity with the original question. Three attempts give a more stable average.
 
-| Call | Judge output | Match with original question |
-|------|-------------|-------------------------------|
-| 2 | `"Who is Christopher Nolan?"` | Partial |
-| 3 | `"Who directed the Dark Knight film series?"` | No — wrong film |
-| 4 | `"Who is Christopher Nolan?"` | Partial |
+For the query `"Who directed Inception?"` → answer `"Christopher Nolan."`:
+
+| Call | Judge generated question | Cosine similarity |
+|------|--------------------------|-------------------|
+| 2 | `"Who is Christopher Nolan?"` | ~0.70 — right person, wrong angle |
+| 3 | `"Who directed the Dark Knight film series?"` | ~0.30 — wrong film entirely |
+| 4 | `"Who is Christopher Nolan?"` | ~0.70 — same as Call 2 |
+
+Average: (0.70 + 0.30 + 0.70) / 3 = **0.571**
+
+The root cause: the answer `"Christopher Nolan."` is too short and does not mention `"Inception"`. The judge cannot infer which film is being discussed and goes off-topic on Call 3, pulling the final score below 1.0. A longer answer like `"Inception was directed by Christopher Nolan."` would score higher because the film title anchors the generated questions.
 
 ### 4. Evaluation flow
 
