@@ -101,9 +101,9 @@ ollama pull llama-guard3:1b
 ollama pull qwen2.5:3b
 ```
 
-### 7. Index the dataset into ChromaDB
+### 7. Index the dataset into ChromaDB (one-time only)
 
-The TMDB dataset is already included in `data/`.
+The TMDB dataset is already included in `data/`. This step only needs to be run once — it populates the local ChromaDB database. Skip it if `chroma_db/` already exists.
 
 🐧 **Linux / macOS**
 ```bash
