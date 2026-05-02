@@ -9,11 +9,28 @@ app_file: chatbot.py
 pinned: false
 short_description: Film chatbot powered by RAG - ChromaDB + Groq + RAGAS
 ---
+
 # RAG Film Chatbot
 
-**[LIVE DEMO](https://giovannitammaro-cinerag.hf.space/)**
+<p align="center">
+  <a href="https://giovannitammaro-cinerag.hf.space/">
+    <img src="https://img.shields.io/badge/Live%20Demo-Open%20in%20HF%20Spaces-FFD21E?style=for-the-badge&logo=huggingface&logoColor=000" alt="Live Demo on HuggingFace Spaces" />
+  </a>
+</p>
 
 A fully local RAG chatbot for film recommendations built with Ollama, ChromaDB, Phoenix, and RAGAS.
+
+## Tech Stack
+
+| Layer | Tool |
+|---|---|
+| LLM inference | [Groq](https://groq.com) (cloud) / [Ollama](https://ollama.com) (local) |
+| Vector store | [ChromaDB](https://www.trychroma.com) |
+| Embeddings | nomic-embed-text / sentence-transformers |
+| Evaluation | [RAGAS](https://docs.ragas.io) |
+| Observability | [Phoenix by Arize](https://phoenix.arize.com) (OpenTelemetry) |
+| UI | [Gradio](https://gradio.app) |
+| Dataset | TMDB 5000 movies |
 
 ## Full pipeline - from client to RAGAS
 
@@ -256,35 +273,35 @@ then generates the final answer with `rag.generate`.
 
 ![Phoenix spans table showing five ChatCompletion calls](images/LLM_2.png)
 
-Clicking **Evaluate this answer** triggers RAGAS, which uses a judge model (`qwen2.5:3b`) to score the answer quality. RAGAS produces **5 LLM calls in total**:
+Clicking **Evaluate this answer** triggers RAGAS, which uses a judge model (`llama-3.1-8b-instant` on Groq) to score the answer quality.
+
+**Optimized evaluation pipeline** — the UI runs faithfulness and answer relevancy sequentially and shows the faithfulness score live while relevancy is still computing:
 
 ```
-faithfulness      → 2 calls
-answer relevancy  → 3 calls
-──────────────────────────────
-1 evaluated sample → 5 calls   (N samples → 5×N calls)
+faithfulness      -> 2 LLM calls   (claim extraction + verification)
+answer relevancy  -> 1 LLM call    (strictness=1, 1 synthetic question)
+-------------------------------------------------
+total              -> 3 LLM calls  (was 5 before optimization)
 ```
+
+Context passed to the judge is also trimmed: top 3 documents, each capped at 500 characters. This halves the token count compared to passing all 5 full documents, reducing latency and rate-limit pressure on the Groq free tier.
 
 **Faithfulness - did the chatbot stick to what it retrieved?**
 
 - **Call 1**: extracts verifiable claims from the answer
-- **Call 5**: checks each claim against the retrieved documents - `verdict: 1` if supported, `0` if not
+- **Call 2**: checks each claim against the retrieved documents - `verdict: 1` if supported, `0` if not
 
 **Answer Relevancy - did the chatbot actually answer the question?**
 
-RAGAS generates 3 synthetic questions from the answer, then measures cosine similarity with the original question. Three attempts give a more stable average.
+RAGAS generates a synthetic question from the answer, then measures cosine similarity with the original question (`strictness=1` - one attempt, faster and lighter than the default 3).
 
-For the query `"Who directed Inception?"` → answer `"Christopher Nolan."`:
+For the query `"Who directed Inception?"` with answer `"Christopher Nolan."`:
 
 | Call | Judge generated question | Cosine similarity |
 |------|--------------------------|-------------------|
-| 2 | `"Who is Christopher Nolan?"` | ~0.70 - right person, wrong angle |
-| 3 | `"Who directed the Dark Knight film series?"` | ~0.30 - wrong film entirely |
-| 4 | `"Who is Christopher Nolan?"` | ~0.70 - same as Call 2 |
+| 3 | `"Who is Christopher Nolan?"` | ~0.70 - right person, wrong angle |
 
-Average: (0.70 + 0.30 + 0.70) / 3 = **0.571**
-
-The root cause: the answer `"Christopher Nolan."` is too short and does not mention `"Inception"`. The judge cannot infer which film is being discussed and goes off-topic on Call 3, pulling the final score below 1.0. A longer answer like `"Inception was directed by Christopher Nolan."` would score higher because the film title anchors the generated questions.
+The root cause: the answer `"Christopher Nolan."` is too short and does not mention `"Inception"`. The judge cannot infer which film is being discussed. A longer answer like `"Inception was directed by Christopher Nolan."` would score higher because the film title anchors the generated question.
 
 ### 4. Evaluation flow
 
@@ -302,41 +319,81 @@ Evaluation happens **after** inference. The answer is already generated; only th
 
 Faithfulness checks whether the chatbot **invented something** or stayed within what it actually retrieved.
 
-When the RAG pipeline answers a question, it first fetches the top 5 most relevant films from ChromaDB (`TOP_K=5`). Those 5 documents are the only source of truth the chatbot is supposed to use. Faithfulness verifies exactly that.
+When the RAG pipeline answers a question, it first fetches the top 5 most relevant films from ChromaDB (`TOP_K=5`). Those documents are the only source of truth the chatbot is supposed to use. Faithfulness verifies exactly that.
 
-The judge model breaks the answer into atomic claims and checks each one against the 5 retrieved documents:
+**How it works - 2 LLM calls:**
 
-- **verdict 1** → the claim is explicitly supported by the retrieved context
-- **verdict 0** -> the claim is not in the retrieved context - the model invented it
+**Call 1 - claim extraction.** The judge reads the chatbot answer and breaks it into atomic, verifiable statements.
+
+```
+Answer: "The Godfather was directed by Coppola and released in 1972."
+
+Extracted claims:
+  - "The Godfather was directed by Coppola"
+  - "The Godfather was released in 1972"
+```
+
+**Call 2 - claim verification.** For each claim, the judge receives the retrieved documents as text in the prompt (it does **not** query ChromaDB directly - the documents are already there as a string) and returns a verdict.
+
+```
+Prompt:
+  Context: <text of the retrieved documents>
+  Claim: "The Godfather was released in 1972"
+  Is this claim supported by the context? -> verdict: 0 or 1
+```
+
+- **verdict 1** - the claim is explicitly supported by the retrieved context
+- **verdict 0** - the claim is not in the retrieved context - the model invented it
 
 ```
 faithfulness = supported claims / total claims
 ```
 
-- Score **1.0** -> everything the chatbot said came from the retrieved documents
-- Score **0.0** -> the chatbot ignored the context and answered from its own memory
+- Score **1.0** - everything the chatbot said came from the retrieved documents
+- Score **0.0** - the chatbot ignored the context and answered from its own memory
 
 Example: the TMDB dataset does not contain Oscar award data. If the chatbot answers *"The Godfather won 3 Oscars"*, that claim is not in the retrieved context → faithfulness = 0. The chatbot hallucinated using its training data instead of the retrieved documents.
+
+For evaluation, the top 3 documents (capped at 500 characters each) are passed to the judge to keep token usage low.
 
 ### Answer Relevancy - on-topic check
 
 Answer relevancy checks whether the chatbot **answered the right question** - not whether the answer is correct.
 
-There is no ground truth here. RAGAS uses a reverse trick instead:
+There is no ground truth here. RAGAS cannot know what the "correct" answer looks like, so it uses a reverse trick instead.
 
-1. Takes the chatbot answer
-2. Asks the judge: *"If someone gave this answer, what question were they probably answering?"*
-3. Generates 3 synthetic questions from the answer
-4. Measures cosine similarity between each generated question and the original question
-5. Averages the 3 similarity scores
+**How it works - 1 LLM call + 2 embeddings:**
+
+**Call 1 - synthetic question generation.** The judge reads only the chatbot answer (without seeing the original question) and generates the question that most likely produced that answer.
 
 ```
-answer_relevancy = avg cosine similarity(generated questions, original question)
+Answer: "Inception was directed by Christopher Nolan."
+->
+Synthetic question: "Who directed Inception?"
 ```
 
-- Score **1.0** -> the answer perfectly addresses the question asked
-- Score **0.0** -> the answer has nothing to do with the question
+**Embedding + cosine similarity.** Both questions are embedded and their semantic similarity is measured.
 
-Example: for `"Who directed Inception?"` -> `"Christopher Nolan."` the judge generates questions like *"Who is Christopher Nolan?"* and *"Who directed the Dark Knight?"* - because the answer is too short and never mentions Inception. The generated questions drift away from the original -> answer relevancy = **0.571**.
+```
+answer_relevancy = cosine_similarity(
+    embed(synthetic question),
+    embed(original question)
+)
+```
+
+- Score **1.0** - the answer perfectly addresses the question asked
+- Score **0.0** - the answer has nothing to do with the question
+
+**Why scores are rarely 1.0.** The judge generates a synthetic question from the answer text. If the answer contains extra words - adjectives, added context, qualifiers - the generated question shifts slightly away from the original phrasing, lowering the cosine similarity. Example:
+
+| Answer | Synthetic question | Score |
+|---|---|---|
+| `"Christopher Nolan."` | `"Who is Christopher Nolan?"` | ~0.57 - no film anchor |
+| `"Inception was directed by Christopher Nolan."` | `"Who directed Inception?"` | ~0.92 |
+| `"The acclaimed filmmaker Christopher Nolan directed Inception."` | `"Who is the acclaimed filmmaker behind Inception?"` | ~0.76 - extra words shift the question |
+
+**Why not compare the answer directly to the question?** RAGAS uses the reverse trick because it has no ground truth. It does not know what a correct answer looks like. The synthetic question is a proxy: if the answer addresses the question well, the generated question will be close to the original. RAGAS already uses semantic embeddings (not keyword matching) for this comparison, so phrasing differences are partially absorbed - but not completely.
+
+**The `strictness` trade-off.** By default RAGAS generates 3 synthetic questions and averages their similarity scores, which is more robust. This app uses `strictness=1` (1 question, 1 LLM call) to reduce latency and stay within Groq free-tier rate limits.
 
 > Answer relevancy does **not** tell you if the answer is factually correct. It only tells you if the answer is on-topic. For factual correctness you would need `answer_correctness`, which requires a hand-written ground truth for every question - not practical for a 4799-film dataset.
