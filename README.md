@@ -63,15 +63,6 @@ flowchart TD
 
     L2 --> SCORE([Faithfulness score + claim breakdown])
     L4 --> SCORE2([Answer Relevancy score + synthetic Q])
-
-    ANS -->|Tab: Batch Evaluate| BATCH
-
-    subgraph BATCH[Batch Evaluate - RAGAS library]
-        B1["Run 3 test queries<br/>through full RAG pipeline"]
-        B2["ragas_evaluate<br/>faithfulness + answer_relevancy<br/>one query at a time, 5s pause"]
-    end
-
-    B1 --> B2 --> TABLE([Results table with avg scores])
 ```
 
 ## Requirements
@@ -216,7 +207,7 @@ cinerag/
 │   ├── router.py           # LLM-based intent classifier
 │   ├── rag_pipeline.py     # retrieve + generate pipeline
 │   ├── evaluate.py         # RAGAS evaluation logic
-│   └── chatbot.py          # Gradio UI (Chat, Evaluate, Batch Evaluate tabs)
+│   └── chatbot.py          # Gradio UI (Chat + Evaluate tabs)
 │
 └── tests/
     ├── test_config.py
@@ -258,19 +249,16 @@ $env:TOP_K="5"
 
 ## UI tabs
 
-The app has three tabs:
+The app has two tabs:
 
 | Tab | What it does |
 |---|---|
 | **Chat** | Ask questions, get answers from the RAG pipeline |
 | **Evaluate** | Score the last chat answer with 3 direct LLM calls (faithfulness + answer relevancy) |
-| **Batch Evaluate** | Run 3 fixed test queries through the pipeline and score them with the RAGAS library |
 
-### Why two different evaluation approaches?
+### Why this evaluation approach?
 
 The **Evaluate** tab uses direct OpenAI calls (no RAGAS library) to compute the same metrics faster and show the full breakdown — claims, verdicts, and the synthetic question — without extra API calls.
-
-The **Batch Evaluate** tab uses the `ragas` library directly (`ragas_evaluate`) on a fixed test set. Useful to benchmark the whole pipeline at once and show RAGAS in action.
 
 ---
 
@@ -337,7 +325,6 @@ The root cause: the answer `"Christopher Nolan."` is too short and does not ment
 
 ```text
 Question → RAG inference → Answer → [Evaluate tab] 3 direct LLM calls → Scores + breakdown
-                                  → [Batch Evaluate tab] RAGAS library → Results table
 ```
 
 Evaluation happens **after** inference. The answer is already generated; only then the user can run evaluation on it.
