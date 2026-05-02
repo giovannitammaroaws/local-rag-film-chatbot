@@ -342,8 +342,8 @@ Prompt:
   Is this claim supported by the context? -> verdict: 0 or 1
 ```
 
-- **verdict 1** - the claim is explicitly supported by the retrieved context
-- **verdict 0** - the claim is not in the retrieved context - the model invented it
+- **verdict 1** - the claim is explicitly supported by the top 3 chunks retrieved from ChromaDB (each capped at 500 characters, passed as plain text in the prompt)
+- **verdict 0** - the claim is not found in those chunks - the model invented it or used knowledge from its training data
 
 ```
 faithfulness = supported claims / total claims
