@@ -1,8 +1,21 @@
+---
+title: CineRAG
+colorFrom: indigo
+colorTo: blue
+sdk: gradio
+sdk_version: 5.29.0
+python_version: "3.11"
+app_file: chatbot.py
+pinned: false
+short_description: Film chatbot powered by RAG - ChromaDB + Groq + RAGAS
+---
 # RAG Film Chatbot
+
+**[LIVE DEMO](https://giovannitammaro-cinerag.hf.space/)**
 
 A fully local RAG chatbot for film recommendations built with Ollama, ChromaDB, Phoenix, and RAGAS.
 
-## Full pipeline — from client to RAGAS
+## Full pipeline - from client to RAGAS
 
 ```mermaid
 flowchart TD
@@ -37,7 +50,7 @@ flowchart TD
 - Ollama installed and running
 - Docker Desktop, if you want Phoenix tracing
 
-> 🪟 **Windows only:** use **Python 3.11** (not 3.12/3.13). `chromadb` ships pre-built wheels only for 3.11 on Windows — newer versions will fail to install with a C++ compiler error.
+> **Windows only:** use **Python 3.11** (not 3.12/3.13). `chromadb` ships pre-built wheels only for 3.11 on Windows - newer versions will fail to install with a C++ compiler error.
 
 ## Setup
 
@@ -49,13 +62,13 @@ cd local-rag-film-chatbot
 
 ### 2. Create and activate a virtual environment
 
-🐧 **Linux / macOS**
+**Linux / macOS**
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-🪟 **Windows (PowerShell)**
+**Windows (PowerShell)**
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
@@ -64,7 +77,7 @@ python -m venv .venv
 > If PowerShell blocks the script with an execution-policy error, run once:
 > `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
-🪟 **Windows (Command Prompt)**
+**Windows (Command Prompt)**
 ```cmd
 python -m venv .venv
 .venv\Scripts\activate.bat
@@ -72,12 +85,12 @@ python -m venv .venv
 
 ### 3. Install dependencies
 
-🐧 **Linux / macOS**
+**Linux / macOS**
 ```bash
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-🪟 **Windows**
+**Windows**
 ```powershell
 .venv\Scripts\python -m pip install -r requirements.txt
 ```
@@ -101,24 +114,24 @@ ollama pull qwen2.5:3b
 
 The TMDB dataset is already included in `data/`. Skip this step if `chroma_db/` already exists.
 
-🐧 **Linux / macOS**
+**Linux / macOS**
 ```bash
 .venv/bin/python ingest.py
 ```
 
-🪟 **Windows**
+**Windows**
 ```powershell
 .venv\Scripts\python ingest.py
 ```
 
 ### 7. Run the chatbot
 
-🐧 **Linux / macOS**
+**Linux / macOS**
 ```bash
 .venv/bin/python chatbot.py
 ```
 
-🪟 **Windows**
+**Windows**
 ```powershell
 .venv\Scripts\python chatbot.py
 ```
@@ -149,10 +162,10 @@ docker run -p 6006:6006 -p 4317:4317 arizephoenix/phoenix:latest
 ## Project structure
 
 ```text
-local-rag-film-chatbot/
-├── chatbot.py              # entry point — runs src/chatbot.py
-├── ingest.py               # entry point — runs src/ingest.py
-├── evaluate.py             # entry point — runs src/evaluate.py
+cinerag/
+├── chatbot.py              # entry point - runs src/chatbot.py
+├── ingest.py               # entry point - runs src/ingest.py
+├── evaluate.py             # entry point - runs src/evaluate.py
 ├── requirements.txt
 ├── pytest.ini
 ├── .gitignore
@@ -185,7 +198,7 @@ local-rag-film-chatbot/
 
 All values have defaults in `src/config.py` and can be overridden before running.
 
-🐧 **Linux / macOS**
+**Linux / macOS**
 ```bash
 export OLLAMA_BASE_URL=http://localhost:11434
 export GUARDRAIL_ENABLED=true
@@ -198,7 +211,7 @@ export CHROMA_COLLECTION=films
 export TOP_K=5
 ```
 
-🪟 **Windows (PowerShell)**
+**Windows (PowerShell)**
 ```powershell
 $env:OLLAMA_BASE_URL="http://localhost:11434"
 $env:GUARDRAIL_ENABLED="true"
@@ -234,7 +247,7 @@ Inside that run, the application retrieves context with `rag.retrieve` and
 then generates the final answer with `rag.generate`.
 
 - `cinerag.query`: the parent trace for the whole user request
-- first `ChatCompletion`: the router/classifier LLM call — classifies intent as `factual`, `recommendation`, or `comparison`
+- first `ChatCompletion`: the router/classifier LLM call - classifies intent as `factual`, `recommendation`, or `comparison`
 - `rag.run`: the main RAG pipeline container
 - `rag.retrieve`: searches ChromaDB for the most relevant film documents
 - `rag.generate` + nested `ChatCompletion`: builds the prompt from question + context, then calls the LLM
@@ -252,12 +265,12 @@ answer relevancy  → 3 calls
 1 evaluated sample → 5 calls   (N samples → 5×N calls)
 ```
 
-**Faithfulness — did the chatbot stick to what it retrieved?**
+**Faithfulness - did the chatbot stick to what it retrieved?**
 
 - **Call 1**: extracts verifiable claims from the answer
-- **Call 5**: checks each claim against the retrieved documents — `verdict: 1` if supported, `0` if not
+- **Call 5**: checks each claim against the retrieved documents - `verdict: 1` if supported, `0` if not
 
-**Answer Relevancy — did the chatbot actually answer the question?**
+**Answer Relevancy - did the chatbot actually answer the question?**
 
 RAGAS generates 3 synthetic questions from the answer, then measures cosine similarity with the original question. Three attempts give a more stable average.
 
@@ -265,9 +278,9 @@ For the query `"Who directed Inception?"` → answer `"Christopher Nolan."`:
 
 | Call | Judge generated question | Cosine similarity |
 |------|--------------------------|-------------------|
-| 2 | `"Who is Christopher Nolan?"` | ~0.70 — right person, wrong angle |
-| 3 | `"Who directed the Dark Knight film series?"` | ~0.30 — wrong film entirely |
-| 4 | `"Who is Christopher Nolan?"` | ~0.70 — same as Call 2 |
+| 2 | `"Who is Christopher Nolan?"` | ~0.70 - right person, wrong angle |
+| 3 | `"Who directed the Dark Knight film series?"` | ~0.30 - wrong film entirely |
+| 4 | `"Who is Christopher Nolan?"` | ~0.70 - same as Call 2 |
 
 Average: (0.70 + 0.30 + 0.70) / 3 = **0.571**
 
@@ -285,7 +298,7 @@ Evaluation happens **after** inference. The answer is already generated; only th
 
 ## RAGAS metrics
 
-### Faithfulness — hallucination check
+### Faithfulness - hallucination check
 
 Faithfulness checks whether the chatbot **invented something** or stayed within what it actually retrieved.
 
@@ -294,20 +307,20 @@ When the RAG pipeline answers a question, it first fetches the top 5 most releva
 The judge model breaks the answer into atomic claims and checks each one against the 5 retrieved documents:
 
 - **verdict 1** → the claim is explicitly supported by the retrieved context
-- **verdict 0** → the claim is not in the retrieved context — the model invented it
+- **verdict 0** -> the claim is not in the retrieved context - the model invented it
 
 ```
 faithfulness = supported claims / total claims
 ```
 
-- Score **1.0** → everything the chatbot said came from the retrieved documents ✅
-- Score **0.0** → the chatbot ignored the context and answered from its own memory ❌
+- Score **1.0** -> everything the chatbot said came from the retrieved documents
+- Score **0.0** -> the chatbot ignored the context and answered from its own memory
 
 Example: the TMDB dataset does not contain Oscar award data. If the chatbot answers *"The Godfather won 3 Oscars"*, that claim is not in the retrieved context → faithfulness = 0. The chatbot hallucinated using its training data instead of the retrieved documents.
 
-### Answer Relevancy — on-topic check
+### Answer Relevancy - on-topic check
 
-Answer relevancy checks whether the chatbot **answered the right question** — not whether the answer is correct.
+Answer relevancy checks whether the chatbot **answered the right question** - not whether the answer is correct.
 
 There is no ground truth here. RAGAS uses a reverse trick instead:
 
@@ -321,9 +334,9 @@ There is no ground truth here. RAGAS uses a reverse trick instead:
 answer_relevancy = avg cosine similarity(generated questions, original question)
 ```
 
-- Score **1.0** → the answer perfectly addresses the question asked ✅
-- Score **0.0** → the answer has nothing to do with the question ❌
+- Score **1.0** -> the answer perfectly addresses the question asked
+- Score **0.0** -> the answer has nothing to do with the question
 
-Example: for `"Who directed Inception?"` → `"Christopher Nolan."` the judge generates questions like *"Who is Christopher Nolan?"* and *"Who directed the Dark Knight?"* — because the answer is too short and never mentions Inception. The generated questions drift away from the original → answer relevancy = **0.571**.
+Example: for `"Who directed Inception?"` -> `"Christopher Nolan."` the judge generates questions like *"Who is Christopher Nolan?"* and *"Who directed the Dark Knight?"* - because the answer is too short and never mentions Inception. The generated questions drift away from the original -> answer relevancy = **0.571**.
 
-> Answer relevancy does **not** tell you if the answer is factually correct. It only tells you if the answer is on-topic. For factual correctness you would need `answer_correctness`, which requires a hand-written ground truth for every question — not practical for a 4799-film dataset.
+> Answer relevancy does **not** tell you if the answer is factually correct. It only tells you if the answer is on-topic. For factual correctness you would need `answer_correctness`, which requires a hand-written ground truth for every question - not practical for a 4799-film dataset.
