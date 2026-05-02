@@ -32,7 +32,7 @@ A fully local RAG chatbot for film recommendations built with Ollama, ChromaDB, 
 | UI | [Gradio](https://gradio.app) |
 | Dataset | TMDB 5000 movies |
 
-## Full pipeline - from client to RAGAS
+## Full pipeline - from client to evaluation
 
 ```mermaid
 flowchart TD
@@ -41,24 +41,37 @@ flowchart TD
     subgraph PIPE[RAG Pipeline]
         G["Guardrail<br/>llama-guard3:1b<br/>safety + topic check"]
         G -->|blocked| REJ([Rejection message])
-        G -->|safe| RT["Router<br/>llama3.2:3b<br/>classify intent"]
-        RT -->|factual / recommendation / comparison| RET["Retrieve<br/>nomic-embed-text to ChromaDB<br/>TOP_K films"]
+        G -->|safe| RT["Router<br/>llama-3.3-70b-versatile<br/>classify intent"]
+        RT -->|factual / recommendation / comparison| RET["Retrieve<br/>nomic-embed-text to ChromaDB<br/>TOP_K=5 films"]
         RET --> CTX[Build context<br/>from retrieved docs]
-        CTX --> GEN["Generate<br/>llama3.2:3b<br/>answer from context"]
+        CTX --> GEN["Generate<br/>llama-3.3-70b-versatile<br/>answer from context"]
     end
 
     GEN --> ANS([Answer shown in UI])
     PIPE -.->|OTel spans| PH[(Phoenix<br/>localhost:6006)]
 
-    ANS -->|click Evaluate this answer| RAGAS
+    ANS -->|Tab: Evaluate this answer| LIVE
 
-    subgraph RAGAS[RAGAS Evaluation - qwen2.5:3b judge]
-        S1["Create evaluation sample<br/>question + answer + contexts"] --> S2["Faithfulness<br/>grounded in retrieved context"]
-        S1 --> S3["Answer relevancy<br/>on-topic with the query"]
+    subgraph LIVE[Live Evaluate - 3 direct LLM calls]
+        L1["Call 1 - LLM as Judge<br/>llama-3.3-70b-versatile<br/>extract claims from answer"]
+        L2["Call 2 - LLM as Judge<br/>llama-3.3-70b-versatile<br/>verify each claim vs top 3 of 5 docs<br/>verdict 0 or 1 per claim<br/>NO ChromaDB, NO cosine similarity"]
+        L3["Call 3 - LLM as Judge<br/>llama-3.3-70b-versatile<br/>generate synthetic question from answer"]
+        L4["Embed synthetic Q + original query<br/>cosine similarity → relevancy score<br/>NO extra LLM call"]
+        L1 --> L2
+        L3 --> L4
     end
 
-    S2 --> SCORE([Scores shown in UI])
-    S3 --> SCORE
+    L2 --> SCORE([Faithfulness score + claim breakdown])
+    L4 --> SCORE2([Answer Relevancy score + synthetic Q])
+
+    ANS -->|Tab: Batch Evaluate| BATCH
+
+    subgraph BATCH[Batch Evaluate - RAGAS library]
+        B1["Run 3 test queries<br/>through full RAG pipeline"]
+        B2["ragas_evaluate<br/>faithfulness + answer_relevancy<br/>one query at a time, 5s pause"]
+    end
+
+    B1 --> B2 --> TABLE([Results table with avg scores])
 ```
 
 ## Requirements
@@ -203,7 +216,7 @@ cinerag/
 │   ├── router.py           # LLM-based intent classifier
 │   ├── rag_pipeline.py     # retrieve + generate pipeline
 │   ├── evaluate.py         # RAGAS evaluation logic
-│   └── chatbot.py          # Gradio UI (chat + evaluate tabs)
+│   └── chatbot.py          # Gradio UI (Chat, Evaluate, Batch Evaluate tabs)
 │
 └── tests/
     ├── test_config.py
@@ -243,7 +256,25 @@ $env:TOP_K="5"
 
 ---
 
-## Answer, inference and RAGAS evaluation
+## UI tabs
+
+The app has three tabs:
+
+| Tab | What it does |
+|---|---|
+| **Chat** | Ask questions, get answers from the RAG pipeline |
+| **Evaluate** | Score the last chat answer with 3 direct LLM calls (faithfulness + answer relevancy) |
+| **Batch Evaluate** | Run 3 fixed test queries through the pipeline and score them with the RAGAS library |
+
+### Why two different evaluation approaches?
+
+The **Evaluate** tab uses direct OpenAI calls (no RAGAS library) to compute the same metrics faster and show the full breakdown — claims, verdicts, and the synthetic question — without extra API calls.
+
+The **Batch Evaluate** tab uses the `ragas` library directly (`ragas_evaluate`) on a fixed test set. Useful to benchmark the whole pipeline at once and show RAGAS in action.
+
+---
+
+## Answer, inference and evaluation
 
 ### 1. Answer
 
@@ -273,27 +304,26 @@ then generates the final answer with `rag.generate`.
 
 ![Phoenix spans table showing five ChatCompletion calls](images/LLM_2.png)
 
-Clicking **Evaluate this answer** triggers RAGAS, which uses a judge model (`llama-3.1-8b-instant` on Groq) to score the answer quality.
-
-**Optimized evaluation pipeline** — the UI runs faithfulness and answer relevancy sequentially and shows the faithfulness score live while relevancy is still computing:
+Clicking **Evaluate this answer** scores the last answer using 3 direct LLM calls to the judge model (`llama-3.3-70b-versatile` on Groq):
 
 ```
-faithfulness      -> 2 LLM calls   (claim extraction + verification)
-answer relevancy  -> 1 LLM call    (strictness=1, 1 synthetic question)
+faithfulness      -> 2 LLM calls   (call 1: claim extraction, call 2: claim verification)
+answer relevancy  -> 1 LLM call    (generate synthetic question) + cosine similarity
 -------------------------------------------------
-total              -> 3 LLM calls  (was 5 before optimization)
+total              -> 3 LLM calls
 ```
 
-Context passed to the judge is also trimmed: top 3 documents, each capped at 500 characters. This halves the token count compared to passing all 5 full documents, reducing latency and rate-limit pressure on the Groq free tier.
+Context passed to the judge is trimmed: top 3 of 5 retrieved documents, each capped at 500 characters. This halves the token count, reducing latency and rate-limit pressure on the Groq free tier.
 
 **Faithfulness - did the chatbot stick to what it retrieved?**
 
-- **Call 1**: extracts verifiable claims from the answer
-- **Call 2**: checks each claim against the retrieved documents - `verdict: 1` if supported, `0` if not
+- **Call 1 [LLM as Judge]**: reads the chatbot answer, extracts every atomic verifiable claim as a list. No ChromaDB query, no cosine similarity — pure LLM reading.
+- **Call 2 [LLM as Judge]**: receives the top 3 of 5 retrieved documents as plain text in the prompt (not a ChromaDB query). Reads each doc and decides per claim: "is this explicitly stated here?" → `verdict: 1` if supported, `0` if not found.
 
 **Answer Relevancy - did the chatbot actually answer the question?**
 
-RAGAS generates a synthetic question from the answer, then measures cosine similarity with the original question (`strictness=1` - one attempt, faster and lighter than the default 3).
+- **Call 3 [LLM as Judge]**: reads only the chatbot answer (without seeing the original question) and generates the question that most likely produced that answer — the synthetic question.
+- **Cosine similarity** (no LLM call): embed the synthetic question and the original query, measure how close they are in vector space. Score 1.0 = identical meaning, 0.0 = unrelated.
 
 For the query `"Who directed Inception?"` with answer `"Christopher Nolan."`:
 
@@ -306,7 +336,8 @@ The root cause: the answer `"Christopher Nolan."` is too short and does not ment
 ### 4. Evaluation flow
 
 ```text
-Question → RAG inference → Answer → RAGAS evaluation → Scores
+Question → RAG inference → Answer → [Evaluate tab] 3 direct LLM calls → Scores + breakdown
+                                  → [Batch Evaluate tab] RAGAS library → Results table
 ```
 
 Evaluation happens **after** inference. The answer is already generated; only then the user can run evaluation on it.
@@ -321,9 +352,9 @@ Faithfulness checks whether the chatbot **invented something** or stayed within 
 
 When the RAG pipeline answers a question, it first fetches the top 5 most relevant films from ChromaDB (`TOP_K=5`). Those documents are the only source of truth the chatbot is supposed to use. Faithfulness verifies exactly that.
 
-**How it works - 2 LLM calls:**
+**How it works - 2 LLM calls, no cosine similarity, no ChromaDB query:**
 
-**Call 1 - claim extraction.** The judge reads the chatbot answer and breaks it into atomic, verifiable statements.
+**Call 1 [LLM as Judge] - claim extraction.** The judge reads the chatbot answer and breaks it into atomic, verifiable statements. This is pure LLM reading — no vector search, no embeddings.
 
 ```
 Answer: "The Godfather was directed by Coppola and released in 1972."
@@ -333,17 +364,17 @@ Extracted claims:
   - "The Godfather was released in 1972"
 ```
 
-**Call 2 - claim verification.** For each claim, the judge receives the retrieved documents as text in the prompt (it does **not** query ChromaDB directly - the documents are already there as a string) and returns a verdict.
+**Call 2 [LLM as Judge] - claim verification.** The judge receives the retrieved documents as plain text directly in the prompt — it does **not** query ChromaDB and does **not** use cosine similarity. It reads the text and decides per claim whether the information is explicitly there.
 
 ```
 Prompt:
-  Context: <text of the retrieved documents>
+  Context: <top 3 of 5 retrieved docs, each capped at 500 chars, as plain text>
   Claim: "The Godfather was released in 1972"
   Is this claim supported by the context? -> verdict: 0 or 1
 ```
 
-- **verdict 1** - the claim is explicitly supported by the top 3 chunks retrieved from ChromaDB (each capped at 500 characters, passed as plain text in the prompt)
-- **verdict 0** - the claim is not found in those chunks - the model invented it or used knowledge from its training data
+- **verdict 1** - the claim is explicitly written in the retrieved context
+- **verdict 0** - the claim is not found — the model invented it or used training data knowledge
 
 ```
 faithfulness = supported claims / total claims
@@ -354,7 +385,7 @@ faithfulness = supported claims / total claims
 
 Example: the TMDB dataset does not contain Oscar award data. If the chatbot answers *"The Godfather won 3 Oscars"*, that claim is not in the retrieved context → faithfulness = 0. The chatbot hallucinated using its training data instead of the retrieved documents.
 
-For evaluation, the top 3 documents (capped at 500 characters each) are passed to the judge to keep token usage low.
+For evaluation, the top 3 of 5 retrieved documents (capped at 500 characters each) are passed to the judge to keep token usage low.
 
 ### Answer Relevancy - on-topic check
 
@@ -362,22 +393,22 @@ Answer relevancy checks whether the chatbot **answered the right question** - no
 
 There is no ground truth here. RAGAS cannot know what the "correct" answer looks like, so it uses a reverse trick instead.
 
-**How it works - 1 LLM call + 2 embeddings:**
+**How it works - 1 LLM call + cosine similarity (no ChromaDB, no extra LLM call):**
 
-**Call 1 - synthetic question generation.** The judge reads only the chatbot answer (without seeing the original question) and generates the question that most likely produced that answer.
+**Call 1 [LLM as Judge] - synthetic question generation.** The judge reads only the chatbot answer (without seeing the original question) and generates the question that most likely produced that answer. This is the only LLM call for this metric.
 
 ```
 Answer: "Inception was directed by Christopher Nolan."
 ->
-Synthetic question: "Who directed Inception?"
+Synthetic question [LLM as Judge]: "Who directed Inception?"
 ```
 
-**Embedding + cosine similarity.** Both questions are embedded and their semantic similarity is measured.
+**Embedding + cosine similarity** (no LLM call). Both questions are converted to embedding vectors and their cosine similarity is measured. This is purely mathematical — no judge involved.
 
 ```
 answer_relevancy = cosine_similarity(
-    embed(synthetic question),
-    embed(original question)
+    embed(synthetic question [LLM as Judge]),
+    embed(original question [USER])
 )
 ```
 
@@ -394,6 +425,6 @@ answer_relevancy = cosine_similarity(
 
 **Why not compare the answer directly to the question?** RAGAS uses the reverse trick because it has no ground truth. It does not know what a correct answer looks like. The synthetic question is a proxy: if the answer addresses the question well, the generated question will be close to the original. RAGAS already uses semantic embeddings (not keyword matching) for this comparison, so phrasing differences are partially absorbed - but not completely.
 
-**The `strictness` trade-off.** By default RAGAS generates 3 synthetic questions and averages their similarity scores, which is more robust. This app uses `strictness=1` (1 question, 1 LLM call) to reduce latency and stay within Groq free-tier rate limits.
+**The strictness trade-off.** The standard RAGAS approach generates 3 synthetic questions and averages their similarity scores, which is more robust. This app generates only 1 synthetic question (1 LLM call) to reduce latency and stay within Groq free-tier rate limits.
 
 > Answer relevancy does **not** tell you if the answer is factually correct. It only tells you if the answer is on-topic. For factual correctness you would need `answer_correctness`, which requires a hand-written ground truth for every question - not practical for a 4799-film dataset.
