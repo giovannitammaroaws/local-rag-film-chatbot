@@ -64,7 +64,8 @@ flowchart TD
     GEN --> ANS([Answer shown in UI])
     PIPE -.->|OTel spans| PH[(Phoenix<br/>localhost:6006)]
 
-    ANS -->|Tab: Evaluate this answer| LIVE
+    ANS --> TAB[Tab: Evaluate this answer]
+    TAB --> LIVE
 
     subgraph LIVE[Live Evaluate - 3 direct LLM calls]
         L1["Call 1 - LLM as Judge<br/>llama-3.3-70b-versatile<br/>extract claims from answer"]
@@ -79,6 +80,7 @@ flowchart TD
     L4 --> SCORE2([Answer Relevancy score + synthetic Q])
 
     style U fill:#111827,stroke:#22c55e,color:#e5e7eb
+    style TAB fill:#374151,stroke:#9ca3af,color:#f3f4f6
     style REJ fill:#111827,stroke:#ef4444,color:#e5e7eb
     style ANS fill:#111827,stroke:#22c55e,color:#e5e7eb
     style PH fill:#111827,stroke:#22c55e,color:#e5e7eb
