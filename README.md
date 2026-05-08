@@ -35,6 +35,20 @@ A fully local RAG chatbot for film recommendations built with Ollama, ChromaDB, 
 ## Full pipeline - from client to evaluation
 
 ```mermaid
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#0b1220",
+    "primaryColor": "#111827",
+    "primaryTextColor": "#e5e7eb",
+    "primaryBorderColor": "#22c55e",
+    "lineColor": "#94a3b8",
+    "secondaryColor": "#111827",
+    "tertiaryColor": "#111827",
+    "clusterBkg": "#0f172a",
+    "clusterBorder": "#22c55e"
+  }
+}}%%
 flowchart TD
     U([User query<br/>Gradio UI]) --> G
 
@@ -63,6 +77,13 @@ flowchart TD
 
     L2 --> SCORE([Faithfulness score + claim breakdown])
     L4 --> SCORE2([Answer Relevancy score + synthetic Q])
+
+    style U fill:#111827,stroke:#22c55e,color:#e5e7eb
+    style REJ fill:#111827,stroke:#ef4444,color:#e5e7eb
+    style ANS fill:#111827,stroke:#22c55e,color:#e5e7eb
+    style PH fill:#111827,stroke:#22c55e,color:#e5e7eb
+    style SCORE fill:#111827,stroke:#22c55e,color:#e5e7eb
+    style SCORE2 fill:#111827,stroke:#22c55e,color:#e5e7eb
 ```
 
 - [1A. Answer](#1a-answer)
