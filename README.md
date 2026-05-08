@@ -281,8 +281,21 @@ to generate a grounded answer from that context.
 
 ![RAG evaluation shown in the chatbot UI](images/evaluation.png)
 
+![Faithfulness breakdown shown in the chatbot UI](images/evaluation2.png)
+
+![Answer relevancy breakdown shown in the chatbot UI](images/evaluation3.png)
+
 The `RAG evaluation` view scores the last generated answer and shows the judge,
 the retrieved context, the claim checks, and the final metric values.
+
+In this example, **faithfulness = 1.000** because all **4 extracted claims are
+supported by the retrieved context**. The judge marks each claim with
+`verdict: 1`, so the score is `4/4 = 1.000`.
+
+The **answer relevancy = 0.984** because the judge-generated synthetic question
+is almost identical to the original user query:
+`"Who directed Inception?"` vs `"Who directed the film Inception?"`.
+That near-perfect semantic match produces a cosine similarity very close to 1.
 
 ### 1C. Context
 
