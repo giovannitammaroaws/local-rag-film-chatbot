@@ -65,6 +65,9 @@ flowchart TD
     L4 --> SCORE2([Answer Relevancy score + synthetic Q])
 ```
 
+- [1A. Answer](#1a-answer)
+- [1B. RAG evaluation](#1b-rag-evaluation)
+
 ## Requirements
 
 - Python 3.11+
@@ -264,7 +267,7 @@ The **Evaluate** tab uses direct OpenAI calls (no RAGAS library) to compute the 
 
 ## Answer, inference and evaluation
 
-### 1. Answer
+### 1A. Answer
 
 ![Answer shown in the chatbot UI](images/answer.png)
 
@@ -272,6 +275,13 @@ The `Answer` is the final response returned to the user in the chatbot UI.
 It is produced after the RAG pipeline has accepted the question, retrieved the
 most relevant film documents from ChromaDB, built the context, and asked the LLM
 to generate a grounded answer from that context.
+
+### 1B. RAG evaluation
+
+![RAG evaluation shown in the chatbot UI](images/evaluation.png)
+
+The `RAG evaluation` view scores the last generated answer and shows the judge,
+the retrieved context, the claim checks, and the final metric values.
 
 ### 2. Inference trace
 
