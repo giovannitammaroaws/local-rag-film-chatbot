@@ -67,6 +67,7 @@ flowchart TD
 
 - [1A. Answer](#1a-answer)
 - [1B. RAG evaluation](#1b-rag-evaluation)
+- [1C. Context](#1c-context)
 
 ## Requirements
 
@@ -282,6 +283,13 @@ to generate a grounded answer from that context.
 
 The `RAG evaluation` view scores the last generated answer and shows the judge,
 the retrieved context, the claim checks, and the final metric values.
+
+### 1C. Context
+
+![Retrieved context shown in the chatbot UI](images/context.png)
+
+The `Context` view shows the retrieved documents passed into the evaluation
+flow, so it is clear what evidence the judge receives before scoring.
 
 ### 2. Inference trace
 
