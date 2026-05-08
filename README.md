@@ -59,10 +59,10 @@ flowchart TD
         RT -->|factual / recommendation / comparison| RET["Retrieve<br/>nomic-embed-text to ChromaDB<br/>TOP_K=5 films"]
         RET --> CTX[Build context<br/>from retrieved docs]
         CTX --> GEN["Generate<br/>llama-3.3-70b-versatile<br/>answer from context"]
+        GEN -.->|OTel spans| PH[(Phoenix<br/>localhost:6006)]
     end
 
     GEN --> ANS([Answer shown in UI])
-    PIPE -.->|OTel spans| PH[(Phoenix<br/>localhost:6006)]
 
     ANS --> TAB[Tab: Evaluate this answer]
     TAB --> LIVE
@@ -78,6 +78,8 @@ flowchart TD
 
     L2 --> SCORE([Faithfulness score + claim breakdown])
     L4 --> SCORE2([Answer Relevancy score + synthetic Q])
+
+    linkStyle 5 stroke:#94a3b8,stroke-width:2px,stroke-dasharray: 6 4
 
     style U fill:#111827,stroke:#22c55e,color:#e5e7eb
     style TAB fill:#374151,stroke:#9ca3af,color:#f3f4f6
